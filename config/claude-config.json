@@ -1,70 +1,174 @@
 {
-  "apiSettings": {
-    "baseUrl": "https://api.anthropic.com",
-    "version": "2023-06-01",
-    "maxRetries": 3,
-    "timeout": 60000
-  },
-  "modelConfig": {
-    "primary": {
-      "model": "claude-3-5-sonnet-20241022",
-      "maxTokens": 8192,
-      "temperature": 0.2,
-      "topP": 0.9,
-      "stopSequences": []
+  "name": "Claude Code Multi-Agent Configuration",
+  "version": "1.0.0",
+  "description": "Configuration for 16-agent parallel Claude Code system",
+
+  "agents": [
+    {
+      "id": 0,
+      "name": "Boss",
+      "role": "全体設計・調整",
+      "type": "boss",
+      "commands": {
+        "init": "プロジェクトの全体構造を設計してください",
+        "plan": "実装計画を作成してください",
+        "review": "全体の進捗を確認してください"
+      }
     },
-    "fallback": {
-      "model": "claude-3-haiku-20240307",
-      "maxTokens": 4096,
-      "temperature": 0.1,
-      "topP": 0.8,
-      "stopSequences": []
+    {
+      "id": 1,
+      "name": "Frontend Manager",
+      "role": "フロントエンド管理",
+      "type": "manager",
+      "team": "frontend",
+      "manages": [4, 5, 6, 7]
+    },
+    {
+      "id": 2,
+      "name": "Backend Manager",
+      "role": "バックエンド管理",
+      "type": "manager",
+      "team": "backend",
+      "manages": [8, 9, 10, 11]
+    },
+    {
+      "id": 3,
+      "name": "DevOps Manager",
+      "role": "インフラ・DevOps管理",
+      "type": "manager",
+      "team": "devops",
+      "manages": [12, 13, 14, 15]
+    },
+    {
+      "id": 4,
+      "name": "UI/UX Worker",
+      "role": "UI/UXデザイン実装",
+      "type": "worker",
+      "team": "frontend",
+      "skills": ["figma", "design-system", "user-research"]
+    },
+    {
+      "id": 5,
+      "name": "React/Vue Worker",
+      "role": "フレームワーク実装",
+      "type": "worker",
+      "team": "frontend",
+      "skills": ["react", "vue", "next.js", "nuxt"]
+    },
+    {
+      "id": 6,
+      "name": "CSS Worker",
+      "role": "スタイリング実装",
+      "type": "worker",
+      "team": "frontend",
+      "skills": ["css", "sass", "tailwind", "styled-components"]
+    },
+    {
+      "id": 7,
+      "name": "A11y Worker",
+      "role": "アクセシビリティ実装",
+      "type": "worker",
+      "team": "frontend",
+      "skills": ["wcag", "aria", "screen-reader", "keyboard-navigation"]
+    },
+    {
+      "id": 8,
+      "name": "API Worker",
+      "role": "API設計・実装",
+      "type": "worker",
+      "team": "backend",
+      "skills": ["rest", "graphql", "openapi", "grpc"]
+    },
+    {
+      "id": 9,
+      "name": "Database Worker",
+      "role": "データベース設計・実装",
+      "type": "worker",
+      "team": "backend",
+      "skills": ["postgresql", "mongodb", "redis", "migrations"]
+    },
+    {
+      "id": 10,
+      "name": "Auth Worker",
+      "role": "認証・セキュリティ実装",
+      "type": "worker",
+      "team": "backend",
+      "skills": ["oauth", "jwt", "encryption", "security-best-practices"]
+    },
+    {
+      "id": 11,
+      "name": "Logic Worker",
+      "role": "ビジネスロジック実装",
+      "type": "worker",
+      "team": "backend",
+      "skills": [
+        "domain-driven-design",
+        "clean-architecture",
+        "design-patterns"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "CI/CD Worker",
+      "role": "CI/CDパイプライン構築",
+      "type": "worker",
+      "team": "devops",
+      "skills": ["github-actions", "jenkins", "gitlab-ci", "circleci"]
+    },
+    {
+      "id": 13,
+      "name": "K8s Worker",
+      "role": "コンテナ・オーケストレーション",
+      "type": "worker",
+      "team": "devops",
+      "skills": ["docker", "kubernetes", "helm", "terraform"]
+    },
+    {
+      "id": 14,
+      "name": "Monitor Worker",
+      "role": "モニタリング・ログ管理",
+      "type": "worker",
+      "team": "devops",
+      "skills": ["prometheus", "grafana", "elk-stack", "datadog"]
+    },
+    {
+      "id": 15,
+      "name": "QA Worker",
+      "role": "テスト・品質保証",
+      "type": "worker",
+      "team": "devops",
+      "skills": ["jest", "cypress", "playwright", "test-automation"]
+    }
+  ],
+
+  "prompts": {
+    "boss": {
+      "system": "あなたはプロジェクト全体を統括するボスエージェントです。全体の設計と各マネージャーへの指示を行います。",
+      "init": "以下のプロジェクトについて、全体設計とタスク分解を行い、各マネージャーへの指示を作成してください。"
+    },
+    "manager": {
+      "system": "あなたはチームを管理するマネージャーエージェントです。ボスからの指示を具体的なタスクに分解し、ワーカーに割り当てます。",
+      "init": "ボスからの指示に基づいて、担当チームのタスクを分解し、各ワーカーへの具体的な指示を作成してください。"
+    },
+    "worker": {
+      "system": "あなたは実装を担当するワーカーエージェントです。与えられたタスクを確実に実装します。",
+      "init": "マネージャーからの指示に基づいて、具体的な実装を行ってください。"
     }
   },
-  "agentProfiles": {
-    "coordinator": {
-      "systemPrompt": "You are a coordination agent responsible for managing and orchestrating tasks across multiple Claude agents. Focus on planning, delegation, and ensuring efficient workflow.",
-      "model": "claude-3-5-sonnet-20241022",
-      "maxTokens": 4000,
-      "temperature": 0.1
-    },
-    "analyzer": {
-      "systemPrompt": "You are an analysis agent specialized in examining data, code, and documents. Provide detailed insights, identify patterns, and generate comprehensive reports.",
-      "model": "claude-3-5-sonnet-20241022",
-      "maxTokens": 8000,
-      "temperature": 0.2
-    },
-    "processor": {
-      "systemPrompt": "You are a processing agent responsible for executing tasks, transforming data, and performing computational work. Focus on accuracy and efficiency.",
-      "model": "claude-3-5-sonnet-20241022",
-      "maxTokens": 6000,
-      "temperature": 0.3
-    },
-    "validator": {
-      "systemPrompt": "You are a validation agent responsible for reviewing, testing, and ensuring quality of outputs from other agents. Focus on accuracy, completeness, and compliance.",
-      "model": "claude-3-5-sonnet-20241022",
-      "maxTokens": 4000,
-      "temperature": 0.1
-    },
-    "reporter": {
-      "systemPrompt": "You are a reporting agent responsible for generating comprehensive reports, summaries, and documentation. Focus on clarity, structure, and actionable insights.",
-      "model": "claude-3-5-sonnet-20241022",
-      "maxTokens": 10000,
-      "temperature": 0.4
-    }
+
+  "templates": {
+    "task_assignment": "## タスク: {task_name}\n\n### 担当: Agent {agent_id}\n### 期限: {deadline}\n### 詳細:\n{description}\n\n### 成果物:\n{deliverables}",
+    "progress_report": "## 進捗報告 - Agent {agent_id}\n\n### 完了タスク:\n{completed}\n\n### 進行中:\n{in_progress}\n\n### 課題:\n{issues}",
+    "code_review": "## コードレビュー\n\n### 対象: {target}\n### レビュアー: Agent {reviewer_id}\n\n### 良い点:\n{positives}\n\n### 改善点:\n{improvements}\n\n### 必須修正:\n{required_fixes}"
   },
-  "safetySettings": {
-    "enableContentFiltering": true,
-    "maxConcurrentRequests": 16,
-    "rateLimitPerMinute": 1000,
-    "enableLogging": true,
-    "logLevel": "info"
-  },
-  "features": {
-    "enableMultiAgent": true,
-    "enableTaskQueue": true,
-    "enableAutoRetry": true,
-    "enableCaching": true,
-    "cacheSize": 1000
+
+  "settings": {
+    "auto_start": true,
+    "startup_delay_seconds": 2,
+    "max_retries": 3,
+    "timeout_minutes": 10,
+    "log_level": "info",
+    "save_transcripts": true,
+    "transcript_path": ".claude/transcripts"
   }
 }

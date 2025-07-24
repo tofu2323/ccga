@@ -1,297 +1,236 @@
-# CCGA Project Setup Guide
+# セットアップガイド
 
-## Overview
+このガイドでは、Claude Code + GitHub Actions 統合環境のセットアップ手順を詳しく説明します。
 
-CCGA (Claude Collaborative Global Agents) is a multi-agent system built around Claude AI, designed to coordinate and execute complex tasks through distributed agent collaboration.
+## 前提条件
 
-## Prerequisites
+- Node.js 18以上
+- Git
+- GitHub アカウント
+- Claude Code Pro または Max プラン（GitHub Actions統合に必要）
 
-### System Requirements
+## セットアップ手順
 
-- **Operating System**: macOS, Linux, or Windows (with WSL)
-- **Memory**: Minimum 8GB RAM (16GB recommended)
-- **Storage**: At least 2GB free space
-- **Network**: Stable internet connection for API calls
-
-### Required Software
-
-- **Node.js**: Version 18 or higher
-- **Python**: Version 3.8 or higher
-- **Git**: Latest version
-- **tmux**: For agent session management
-- **jq**: For JSON processing
-
-### API Keys
-
-- **Anthropic API Key**: Required for Claude AI access
-  - Get your key from: https://console.anthropic.com/
-
-## Quick Start
-
-### 1. Clone and Setup
+### 1. リポジトリの準備
 
 ```bash
-# Clone the repository
-git clone <repository-url> ccga
-cd ccga
+# リポジトリをクローン
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
 
-# Run the installation script
+# または新規作成
+mkdir my-claude-project
+cd my-claude-project
+git init
+```
+
+### 2. 依存関係のインストール
+
+```bash
+# 実行権限を付与
+chmod +x scripts/install-dependencies.sh
+
+# インストールスクリプトを実行
 ./scripts/install-dependencies.sh
 ```
 
-### 2. Configure Environment
+これにより以下がインストールされます：
+- Claude Code (npm package)
+- tmux（マルチエージェント環境用）
+- GitHub CLI（オプション）
+
+### 3. Claude Code の初期設定
+
+#### 方法1: 自動セットアップ（推奨）
 
 ```bash
-# Copy the example environment file
+# Claude Code を起動
+claude
+
+# GitHub App を自動インストール
+/init-github-app
+```
+
+このコマンドで以下が自動的に行われます：
+- GitHub App のインストール
+- OAuth トークンの生成と設定
+- デフォルトワークフローの作成
+  - `.github/workflows/claude.yml`
+  - `.github/workflows/claude-review.yml`
+
+#### 方法2: 手動セットアップ
+
+```bash
+# OAuth トークンを生成
+claude setup-token
+
+# 表示されたトークンをコピー
+# GitHub リポジトリの Settings > Secrets > Actions で
+# CLAUDE_CODE_OAUTH_TOKEN として追加
+```
+
+### 4. 環境変数の設定
+
+```bash
+# 環境変数ファイルをコピー
 cp .env.example .env
 
-# Edit the .env file and add your API key
-# ANTHROPIC_API_KEY=your_api_key_here
+# .env ファイルを編集
+nano .env  # または好きなエディタで
 ```
 
-### 3. Setup Claude Environment
-
+必須の環境変数：
 ```bash
-# Run the Claude setup script
-./.github/scripts/setup-claude.sh
+CLAUDE_CODE_OAUTH_TOKEN=your-oauth-token-here
+GITHUB_TOKEN=your-github-token-here
 ```
 
-### 4. Start Agents
+### 5. GitHub Actions の設定
+
+#### デフォルトワークフローの確認
+
+`/init-github-app` を実行した場合、以下のワークフローが作成されています：
+
+1. **claude.yml** - @claude メンション応答
+2. **claude-review.yml** - PR自動レビュー
+
+#### カスタムワークフローの追加
+
+マルチエージェント機能を使いたい場合：
 
 ```bash
-# Start 16 Claude agents in tmux
+# カスタムワークフローをコピー
+cp .github/workflows/claude-multi-agent.yml.example .github/workflows/claude-multi-agent.yml
+cp .github/workflows/claude-enhanced.yml.example .github/workflows/claude-enhanced.yml
+```
+
+### 6. マルチエージェント環境のセットアップ
+
+#### ローカル環境（16エージェント）
+
+```bash
+# 実行権限を付与
+chmod +x scripts/tmux-16-agents.sh
+chmod +x scripts/agent-commands.sh
+
+# 16エージェント環境を起動
 ./scripts/tmux-16-agents.sh
 
-# Or use the management script
-./.github/scripts/manage-agents.sh start
+# 別のターミナルで、エージェントコマンドを読み込み
+source scripts/agent-commands.sh
 ```
 
-## Configuration
-
-### Agent Configuration
-
-Edit `config/claude-config.json` to customize:
-
-- **Model Settings**: Choose between different Claude models
-- **Agent Profiles**: Configure specialized agent roles
-- **Safety Settings**: Adjust content filtering and rate limits
-
-### MCP Configuration
-
-Edit `config/.mcp.json` to configure:
-
-- **MCP Servers**: Model Context Protocol integrations
-- **Tools**: Available tools for each agent type
-- **Global Settings**: Timeout, retries, and logging
-
-### Tmux Configuration
-
-The `config/tmux.conf` file provides:
-
-- **Key Bindings**: Custom shortcuts for agent management
-- **Visual Styling**: Color-coded agent sessions
-- **Logging**: Automatic log capture for debugging
-
-## Agent Roles
-
-### Coordinator (Agent 1)
-- **Purpose**: Task planning and delegation
-- **Tools**: File management, Git, Task management
-- **Configuration**: Low temperature for consistent planning
-
-### Analyzers (Agents 2-5)
-- **Purpose**: Data and code analysis
-- **Tools**: File management
-- **Configuration**: Higher token limit for complex analysis
-
-### Processors (Agents 6-10)
-- **Purpose**: Task execution and data transformation
-- **Tools**: File management, Task management
-- **Configuration**: Balanced settings for processing work
-
-### Validators (Agents 11-14)
-- **Purpose**: Quality assurance and testing
-- **Tools**: File management, Git
-- **Configuration**: Low temperature for consistent validation
-
-### Reporters (Agents 15-16)
-- **Purpose**: Documentation and reporting
-- **Tools**: File management, Task management
-- **Configuration**: High token limit for comprehensive reports
-
-## Usage
-
-### Starting Agents
+#### 基本的な使い方
 
 ```bash
-# Start all agents
-./scripts/tmux-16-agents.sh
+# 全エージェントにタスクを送信
+ta "プロジェクトの初期構造を作成してください"
 
-# Start specific number of agents
-./scripts/tmux-16-agents.sh 8
+# ボスエージェントに指示
+tb "全体の設計方針を決定してください"
 
-# Use management script
-./.github/scripts/manage-agents.sh start --count 12
+# 特定のエージェントに指示
+tg 5 "ログインコンポーネントを実装してください"
+
+# エージェントのステータス確認
+ts
 ```
 
-### Managing Agents
+### 7. プロジェクトコンテキストの設定
 
 ```bash
-# Check agent status
-./.github/scripts/manage-agents.sh status
+# .claude ディレクトリを作成
+mkdir -p .claude
 
-# View agent logs
-./.github/scripts/manage-agents.sh logs
+# CLAUDE.md を作成（プロジェクトの説明）
+cat > .claude/CLAUDE.md << 'EOF'
+# プロジェクト名
 
-# Stop all agents
-./.github/scripts/manage-agents.sh stop
+## 概要
+このプロジェクトの説明
 
-# Restart agents
-./.github/scripts/manage-agents.sh restart
+## 技術スタック
+- Frontend: React/TypeScript
+- Backend: Node.js/Express
+- Database: PostgreSQL
+
+## コーディング規約
+- ESLint の設定に従う
+- Prettier でフォーマット
+- Conventional Commits を使用
+
+## 重要事項
+- テストを必ず書く
+- ドキュメントを更新する
+EOF
 ```
 
-### Tmux Commands
+### 8. セキュリティの確認
 
 ```bash
-# Attach to agent session
-tmux attach -t claude-agents
+# .gitignore の確認
+cat >> .gitignore << 'EOF'
+.env
+.env.local
+.claude-token
+*.log
+.agent-status/
+node_modules/
+EOF
 
-# List agent windows
-tmux list-windows -t claude-agents
-
-# Switch to specific agent
-tmux select-window -t claude-agents:agent-5
+# プライベートリポジトリであることを確認
+gh repo view --json private
 ```
 
-## Monitoring
+## トラブルシューティング
 
-### Log Files
-
-Agent logs are stored in `logs/`:
-
-- `agent-{id}.log`: Individual agent logs
-- `tmux-*.log`: Tmux session logs
-
-### Status Monitoring
-
-Use the status commands to monitor:
-
-- **Agent Health**: Running/stopped status
-- **Task Progress**: Current task execution
-- **Resource Usage**: Memory and CPU utilization
-
-## Troubleshooting
-
-### Common Issues
-
-**Agents not starting:**
-- Check ANTHROPIC_API_KEY is set
-- Verify tmux is installed
-- Check script permissions
-
-**API Rate Limits:**
-- Reduce concurrent agents
-- Adjust rate limits in config
-- Check API quota
-
-**Permission Errors:**
-- Run: `chmod +x scripts/*.sh`
-- Run: `chmod +x .github/scripts/*.sh`
-
-### Debug Mode
-
-Enable debug logging:
+### Claude Code が起動しない
 
 ```bash
-export DEBUG=true
-./scripts/tmux-16-agents.sh
+# Node.js バージョンを確認
+node --version  # 18以上である必要があります
+
+# Claude Code を再インストール
+npm uninstall -g @anthropic-ai/claude-code
+npm install -g @anthropic-ai/claude-code
 ```
 
-### Logs Analysis
+### GitHub Actions が動作しない
+
+1. CLAUDE_CODE_OAUTH_TOKEN が正しく設定されているか確認
+2. GitHub App がリポジトリにインストールされているか確認
+3. ワークフローのログを確認
 
 ```bash
-# View all agent logs
-tail -f logs/*.log
+# 最新のワークフロー実行を確認
+gh run list --limit 5
 
-# Filter specific agent
-grep "Agent 5" logs/agent-5.log
-
-# Monitor errors
-grep "ERROR" logs/*.log
+# 特定の実行のログを表示
+gh run view <run-id> --log
 ```
 
-## Development
-
-### Adding New Agents
-
-1. Update agent count in scripts
-2. Add agent profile in `config/claude-config.json`
-3. Update MCP configuration if needed
-4. Test with development setup
-
-### Custom Tools
-
-1. Add MCP server configuration
-2. Update agent tool permissions
-3. Test tool integration
-4. Document usage
-
-### Testing
+### tmux セッションの問題
 
 ```bash
-# Run agent tests
-npm test
+# 既存のセッションを確認
+tmux ls
 
-# Run specific agent test
-npm test -- --agent=coordinator
+# セッションを強制終了
+tmux kill-session -t claude-agents
 
-# Integration tests
-npm run test:integration
+# tmux の設定をリセット
+rm -rf ~/.tmux.conf
+cp config/tmux.conf ~/.tmux.conf
 ```
 
-## Support
+## 次のステップ
 
-### Documentation
+1. [デフォルトワークフローガイド](DEFAULT_WORKFLOWS.md) を読む
+2. 最初のタスクを実行してみる
+3. チームメンバーにセットアップ手順を共有する
 
-- **GitHub Issues**: Report bugs and feature requests
-- **Wiki**: Detailed implementation guides
-- **Examples**: Sample configurations and use cases
+## サポート
 
-### Community
-
-- **Discussions**: GitHub Discussions for questions
-- **Discord**: Real-time community support
-- **Stack Overflow**: Tag questions with `ccga-claude`
-
-## Security
-
-### API Key Security
-
-- Never commit API keys to version control
-- Use environment variables or secure vaults
-- Rotate keys regularly
-
-### Network Security
-
-- Use HTTPS for all API calls
-- Consider VPN for sensitive deployments
-- Monitor API usage for anomalies
-
-### Agent Isolation
-
-- Agents run in separate tmux windows
-- File system access is controlled
-- Network access can be restricted
-
-## License
-
-This project is licensed under the MIT License. See LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes with tests
-4. Submit a pull request
-
-Please follow the contribution guidelines in CONTRIBUTING.md. 
+問題が解決しない場合：
+- [GitHub Issues](https://github.com/your-username/your-repo/issues) で報告
+- [Anthropic サポート](https://support.anthropic.com) に連絡

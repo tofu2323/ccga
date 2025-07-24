@@ -1,132 +1,251 @@
 #!/bin/bash
+# エージェント管理用コマンドエイリアス
 
-# Agent Commands Script
-# This script defines commands for individual Claude agents
+# セッション名（環境変数で上書き可能）
+CLAUDE_SESSION="${CLAUDE_SESSION:-claude-agents}"
 
-set -e
+# カラー定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-AGENT_ID=${1:-1}
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-
-# Log setup
-LOG_DIR="$PROJECT_ROOT/logs"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/agent-${AGENT_ID}.log"
-
-# Function to log with timestamp
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Agent $AGENT_ID: $*" | tee -a "$LOG_FILE"
-}
-
-# Function to handle signals
-cleanup() {
-    log "Received shutdown signal, cleaning up..."
-    exit 0
-}
-
-trap cleanup SIGTERM SIGINT
-
-log "Starting Claude Agent $AGENT_ID"
-log "Project root: $PROJECT_ROOT"
-log "Log file: $LOG_FILE"
-
-# Load environment variables if .env exists
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-    log "Loading environment variables from .env"
-    source "$PROJECT_ROOT/.env"
-fi
-
-# Check if ANTHROPIC_API_KEY is set
-if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-    log "WARNING: ANTHROPIC_API_KEY is not set"
-else
-    log "ANTHROPIC_API_KEY is configured"
-fi
-
-# Agent-specific initialization based on AGENT_ID
-case $AGENT_ID in
-    1)
-        log "Initializing as primary coordination agent"
-        AGENT_ROLE="coordinator"
-        ;;
-    2|3|4|5)
-        log "Initializing as analysis agent"
-        AGENT_ROLE="analyzer"
-        ;;
-    6|7|8|9|10)
-        log "Initializing as processing agent"
-        AGENT_ROLE="processor"
-        ;;
-    11|12|13|14)
-        log "Initializing as validation agent"
-        AGENT_ROLE="validator"
-        ;;
-    15|16)
-        log "Initializing as reporting agent"
-        AGENT_ROLE="reporter"
-        ;;
-    *)
-        log "Initializing as general purpose agent"
-        AGENT_ROLE="general"
-        ;;
-esac
-
-export AGENT_ROLE
-
-log "Agent role: $AGENT_ROLE"
-
-# Main agent loop
-ITERATION=0
-while true; do
-    ITERATION=$((ITERATION + 1))
-    log "Iteration $ITERATION - Agent $AGENT_ID ($AGENT_ROLE) is running"
+# 全エージェントにコマンド送信
+ta() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Usage: ta \"command\"${NC}"
+        echo "Send command to all 16 agents"
+        return 1
+    fi
     
-    # Agent-specific tasks
-    case $AGENT_ROLE in
-        "coordinator")
-            log "Coordinating tasks across agents..."
-            # Add coordination logic here
+    echo -e "${BLUE}📢 Broadcasting to all agents...${NC}"
+    for i in {0..15}; do
+        tmux send-keys -t $CLAUDE_SESSION:0.$i "$1" C-m
+    done
+    echo -e "${GREEN}✅ Command sent to all agents${NC}"
+}
+
+# ボスエージェント（0番）にコマンド送信
+tb() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Usage: tb \"command\"${NC}"
+        echo "Send command to boss agent (Agent 0)"
+        return 1
+    fi
+    
+    echo -e "${MAGENTA}👑 Sending to Boss agent...${NC}"
+    tmux send-keys -t $CLAUDE_SESSION:0.0 "$1" C-m
+    echo -e "${GREEN}✅ Command sent to Boss${NC}"
+}
+
+# マネージャーエージェント（1-3番）にコマンド送信
+tm() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Usage: tm \"command\"${NC}"
+        echo "Send command to manager agents (Agents 1-3)"
+        return 1
+    fi
+    
+    echo -e "${CYAN}👔 Sending to Manager agents...${NC}"
+    for i in {1..3}; do
+        tmux send-keys -t $CLAUDE_SESSION:0.$i "$1" C-m
+    done
+    echo -e "${GREEN}✅ Command sent to all Managers${NC}"
+}
+
+# ワーカーエージェント（4-15番）にコマンド送信
+tw() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Usage: tw \"command\"${NC}"
+        echo "Send command to worker agents (Agents 4-15)"
+        return 1
+    fi
+    
+    echo -e "${YELLOW}👷 Sending to Worker agents...${NC}"
+    for i in {4..15}; do
+        tmux send-keys -t $CLAUDE_SESSION:0.$i "$1" C-m
+    done
+    echo -e "${GREEN}✅ Command sent to all Workers${NC}"
+}
+
+# 特定のエージェントにコマンド送信
+tg() {
+    if [ -z "$2" ]; then
+        echo -e "${RED}Usage: tg <agent_number> \"command\"${NC}"
+        echo "Send command to specific agent"
+        echo "Example: tg 5 \"implement authentication\""
+        return 1
+    fi
+    
+    if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 0 ] || [ "$1" -gt 15 ]; then
+        echo -e "${RED}Error: Agent number must be between 0 and 15${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}📨 Sending to Agent $1...${NC}"
+    tmux send-keys -t $CLAUDE_SESSION:0.$1 "$2" C-m
+    echo -e "${GREEN}✅ Command sent to Agent $1${NC}"
+}
+
+# エージェントのステータス確認
+ts() {
+    echo -e "${BLUE}📊 Claude Agent Status${NC}"
+    echo "======================"
+    
+    # エージェントの役割マッピング
+    declare -A ROLES=(
+        [0]="Boss"
+        [1]="Manager (Frontend)"
+        [2]="Manager (Backend)"
+        [3]="Manager (DevOps)"
+        [4]="Worker (UI/UX)"
+        [5]="Worker (React/Vue)"
+        [6]="Worker (CSS)"
+        [7]="Worker (A11y)"
+        [8]="Worker (API)"
+        [9]="Worker (Database)"
+        [10]="Worker (Auth)"
+        [11]="Worker (Logic)"
+        [12]="Worker (CI/CD)"
+        [13]="Worker (K8s)"
+        [14]="Worker (Monitor)"
+        [15]="Worker (QA)"
+    )
+    
+    for i in {0..15}; do
+        STATUS=$(tmux list-panes -t $CLAUDE_SESSION:0 -F "#{pane_index}:#{pane_current_command}" | grep "^$i:" | cut -d: -f2)
+        
+        # ステータスに応じた絵文字
+        if [[ "$STATUS" == *"claude"* ]]; then
+            EMOJI="🟢"
+        elif [[ "$STATUS" == *"sleep"* ]]; then
+            EMOJI="😴"
+        else
+            EMOJI="🔴"
+        fi
+        
+        printf "${EMOJI} Agent %2d [%-20s]: %s\n" $i "${ROLES[$i]}" "$STATUS"
+    done
+}
+
+# エージェントビューの切り替え
+tv() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Usage: tv <agent_number>${NC}"
+        echo "Switch to specific agent's pane"
+        return 1
+    fi
+    
+    if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 0 ] || [ "$1" -gt 15 ]; then
+        echo -e "${RED}Error: Agent number must be between 0 and 15${NC}"
+        return 1
+    fi
+    
+    tmux select-pane -t $CLAUDE_SESSION:0.$1
+    echo -e "${GREEN}✅ Switched to Agent $1${NC}"
+}
+
+# チーム別コマンド送信
+tt() {
+    if [ -z "$2" ]; then
+        echo -e "${RED}Usage: tt <team> \"command\"${NC}"
+        echo "Teams: frontend, backend, devops, all"
+        return 1
+    fi
+    
+    case $1 in
+        frontend)
+            echo -e "${CYAN}🎨 Sending to Frontend team...${NC}"
+            for i in 1 4 5 6 7; do
+                tmux send-keys -t $CLAUDE_SESSION:0.$i "$2" C-m
+            done
             ;;
-        "analyzer")
-            log "Performing analysis tasks..."
-            # Add analysis logic here
+        backend)
+            echo -e "${YELLOW}⚙️ Sending to Backend team...${NC}"
+            for i in 2 8 9 10 11; do
+                tmux send-keys -t $CLAUDE_SESSION:0.$i "$2" C-m
+            done
             ;;
-        "processor")
-            log "Processing data..."
-            # Add processing logic here
+        devops)
+            echo -e "${MAGENTA}🚀 Sending to DevOps team...${NC}"
+            for i in 3 12 13 14 15; do
+                tmux send-keys -t $CLAUDE_SESSION:0.$i "$2" C-m
+            done
             ;;
-        "validator")
-            log "Validating results..."
-            # Add validation logic here
-            ;;
-        "reporter")
-            log "Generating reports..."
-            # Add reporting logic here
+        all)
+            ta "$2"
+            return
             ;;
         *)
-            log "Performing general tasks..."
-            # Add general logic here
+            echo -e "${RED}Unknown team: $1${NC}"
+            echo "Available teams: frontend, backend, devops, all"
+            return 1
             ;;
     esac
     
-    # Check for task files
-    TASK_FILE="$PROJECT_ROOT/tmp/task-${AGENT_ID}.json"
-    if [[ -f "$TASK_FILE" ]]; then
-        log "Found task file: $TASK_FILE"
-        # Process task file here
-        # For now, just log and remove it
-        cat "$TASK_FILE" | while read -r line; do
-            log "Task: $line"
-        done
-        rm "$TASK_FILE"
+    echo -e "${GREEN}✅ Command sent to $1 team${NC}"
+}
+
+# エージェントのログを表示
+tl() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Usage: tl <agent_number>${NC}"
+        echo "Show logs for specific agent"
+        return 1
     fi
     
-    # Health check
-    if [[ $((ITERATION % 10)) -eq 0 ]]; then
-        log "Health check - Agent $AGENT_ID is healthy after $ITERATION iterations"
+    if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 0 ] || [ "$1" -gt 15 ]; then
+        echo -e "${RED}Error: Agent number must be between 0 and 15${NC}"
+        return 1
     fi
     
-    # Sleep between iterations
-    sleep 30
-done 
+    echo -e "${BLUE}📜 Logs for Agent $1:${NC}"
+    tmux capture-pane -t $CLAUDE_SESSION:0.$1 -p | tail -n 50
+}
+
+# 全エージェントをクリア
+tc() {
+    echo -e "${YELLOW}🧹 Clearing all agent screens...${NC}"
+    for i in {0..15}; do
+        tmux send-keys -t $CLAUDE_SESSION:0.$i "clear" C-m
+    done
+    echo -e "${GREEN}✅ All screens cleared${NC}"
+}
+
+# ヘルプメッセージ
+th() {
+    echo -e "${BLUE}Claude Agent Commands${NC}"
+    echo "===================="
+    echo ""
+    echo "Basic Commands:"
+    echo "  ta \"cmd\"     - Send to all agents"
+    echo "  tb \"cmd\"     - Send to boss (Agent 0)"
+    echo "  tm \"cmd\"     - Send to managers (Agents 1-3)"
+    echo "  tw \"cmd\"     - Send to workers (Agents 4-15)"
+    echo "  tg N \"cmd\"   - Send to specific agent N"
+    echo ""
+    echo "Team Commands:"
+    echo "  tt frontend \"cmd\"  - Send to frontend team"
+    echo "  tt backend \"cmd\"   - Send to backend team"
+    echo "  tt devops \"cmd\"    - Send to devops team"
+    echo ""
+    echo "Utility Commands:"
+    echo "  ts           - Show agent status"
+    echo "  tv N         - Switch view to agent N"
+    echo "  tl N         - Show logs for agent N"
+    echo "  tc           - Clear all screens"
+    echo "  th           - Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  ta \"analyze requirements.txt\""
+    echo "  tb \"create project plan\""
+    echo "  tg 5 \"implement login component\""
+    echo "  tt frontend \"review UI components\""
+}
+
+# 初期化メッセージ
+echo -e "${GREEN}✅ Claude agent commands loaded!${NC}"
+echo "Type 'th' for help on available commands"

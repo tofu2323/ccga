@@ -19,15 +19,25 @@ cp .env.example .env
 # .envファイルを編集してトークンを設定
 ```
 
-### 2. Claude Code OAuth トークンの取得
+### 2. Claude Code のセットアップ
 
 ```bash
 # Claude Code をインストール
 npm install -g @anthropic-ai/claude-code
 
-# OAuth トークンを生成
-claude setup-token
+# Claude Code を起動
+claude
 
+# GitHub App の自動セットアップ（推奨）
+/init-github-app
+
+# これにより以下が自動作成される：
+# - .github/workflows/claude.yml（@claudeメンション対応）
+# - .github/workflows/claude-review.yml（PR自動レビュー）
+# - OAuth トークンの設定
+
+# もし手動でトークンを設定する場合：
+claude setup-token
 # 生成されたトークンをGitHub Secretsに追加
 # Settings > Secrets > Actions > New repository secret
 # Name: CLAUDE_CODE_OAUTH_TOKEN
@@ -46,17 +56,51 @@ source ./scripts/agent-commands.sh
 ta "プロジェクトの初期構造を作成してください"
 ```
 
+## 📂 ワークフローの構成
+
+### デフォルトワークフロー（`/init-github-app` で自動生成）
+- **claude.yml** - @claude メンション応答
+- **claude-review.yml** - PR自動レビュー
+
+### カスタムワークフロー（追加機能）
+- **claude-multi-agent.yml** - 16並列エージェント実行
+- **claude-enhanced.yml** - 統合版（単一/マルチ両対応）
+
+詳細は [docs/DEFAULT_WORKFLOWS.md](docs/DEFAULT_WORKFLOWS.md) を参照。
+
 ## 📝 使い方
 
-### Issue/PRでのClaude呼び出し
+### デフォルト機能（単一エージェント）
 
 ```markdown
+# Issue/PRでのClaude呼び出し
 @claude このバグを修正してください
+
+# PRは自動的にレビューされる（claude-review.yml）
 ```
 
-### マルチエージェントビルドの実行
+### カスタム機能（マルチエージェント）
 
-GitHub Actions の "Claude Multi-Agent Build" ワークフローを手動実行。
+```markdown
+# 4エージェント並列実行
+@claude-multi この機能を実装してください
+
+# GitHub Actions から手動実行
+Actions > Claude Multi-Agent Build > Run workflow
+```
+
+### ローカル16エージェント環境
+
+```bash
+# tmuxセッションを開始
+./scripts/tmux-16-agents.sh
+
+# エージェントコマンドを読み込み
+source ./scripts/agent-commands.sh
+
+# 全エージェントにタスクを割り当て
+ta "プロジェクトの初期構造を作成してください"
+```
 
 ### エージェント管理コマンド
 

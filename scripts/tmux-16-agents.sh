@@ -1,83 +1,184 @@
 #!/bin/bash
+# 16エージェント並列実行環境セットアップスクリプト
 
-# Tmux 16 Agents Script
-# This script creates a tmux session with 16 Claude agents
-
-set -e
-
-AGENT_COUNT=${1:-16}
 SESSION_NAME="claude-agents"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CONFIG_FILE="${CONFIG_FILE:-config/tmux.conf}"
 
-echo "🚀 Starting $AGENT_COUNT Claude agents in tmux session '$SESSION_NAME'..."
+# カラー定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Kill existing session if it exists
-if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-    echo "⚠️  Killing existing session '$SESSION_NAME'..."
-    tmux kill-session -t "$SESSION_NAME"
+echo -e "${BLUE}🚀 Claude Code 16-Agent Environment Setup${NC}"
+echo "========================================"
+
+# tmuxの確認
+if ! command -v tmux &> /dev/null; then
+    echo -e "${RED}Error: tmux is not installed${NC}"
+    echo "Please install tmux first: sudo apt-get install tmux"
+    exit 1
 fi
 
-# Create new tmux session
-echo "📱 Creating tmux session '$SESSION_NAME'..."
-tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_ROOT"
+# Claude Codeの確認
+if ! command -v claude &> /dev/null; then
+    echo -e "${RED}Error: Claude Code is not installed${NC}"
+    echo "Please install Claude Code first: npm install -g @anthropic-ai/claude-code"
+    exit 1
+fi
 
-# Rename the first window
-tmux rename-window -t "$SESSION_NAME:0" "agent-1"
-
-# Create additional windows for each agent
-for ((i=2; i<=AGENT_COUNT; i++)); do
-    tmux new-window -t "$SESSION_NAME" -c "$PROJECT_ROOT" -n "agent-$i"
-done
-
-# Start agent processes in each window
-for ((i=1; i<=AGENT_COUNT; i++)); do
-    echo "🤖 Starting agent $i..."
-    tmux send-keys -t "$SESSION_NAME:agent-$i" "cd $PROJECT_ROOT" C-m
-    tmux send-keys -t "$SESSION_NAME:agent-$i" "echo 'Agent $i started. PID: \$\$'" C-m
-    tmux send-keys -t "$SESSION_NAME:agent-$i" "export AGENT_ID=$i" C-m
-    tmux send-keys -t "$SESSION_NAME:agent-$i" "export AGENT_COUNT=$AGENT_COUNT" C-m
-    
-    # Run agent-specific commands
-    if [[ -f "$SCRIPT_DIR/agent-commands.sh" ]]; then
-        tmux send-keys -t "$SESSION_NAME:agent-$i" "./scripts/agent-commands.sh $i" C-m
+# 既存セッションの確認
+if tmux has-session -t $SESSION_NAME 2>/dev/null; then
+    echo -e "${YELLOW}Warning: Session '$SESSION_NAME' already exists${NC}"
+    read -p "Kill existing session? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        tmux kill-session -t $SESSION_NAME
+        echo "Existing session killed"
     else
-        # Default command if agent-commands.sh doesn't exist
-        tmux send-keys -t "$SESSION_NAME:agent-$i" "echo 'Claude Agent $i running... (no agent-commands.sh found)'" C-m
-        tmux send-keys -t "$SESSION_NAME:agent-$i" "while true; do sleep 10; echo 'Agent $i heartbeat at \$(date)'; done" C-m
+        echo "Attaching to existing session..."
+        tmux attach -t $SESSION_NAME
+        exit 0
+    fi
+fi
+
+# tmux設定ファイルの適用
+if [ -f "$CONFIG_FILE" ]; then
+    TMUX_CONFIG="-f $CONFIG_FILE"
+else
+    TMUX_CONFIG=""
+fi
+
+# セッション作成
+echo -e "${GREEN}Creating new session: $SESSION_NAME${NC}"
+tmux new-session -d -s $SESSION_NAME $TMUX_CONFIG
+
+# 16分割のレイアウト作成
+echo "Creating 4x4 grid layout..."
+for i in {1..15}; do
+    if [ $((i % 4)) -eq 0 ]; then
+        tmux split-window -v -t $SESSION_NAME
+        tmux select-layout -t $SESSION_NAME tiled
+    else
+        tmux split-window -h -t $SESSION_NAME
+        tmux select-layout -t $SESSION_NAME tiled
     fi
 done
 
-# Configure tmux settings
-tmux set-option -t "$SESSION_NAME" mouse on
-tmux set-option -t "$SESSION_NAME" status-bg colour235
-tmux set-option -t "$SESSION_NAME" status-fg colour136
-tmux set-option -t "$SESSION_NAME" status-left "#[fg=colour166]#S #[fg=colour245]| "
-tmux set-option -t "$SESSION_NAME" status-right "#[fg=colour166]%Y-%m-%d %H:%M"
+# エージェントの役割定義
+declare -A AGENT_ROLES=(
+    [0]="ボス：全体設計・調整"
+    [1]="マネージャー：フロントエンド"
+    [2]="マネージャー：バックエンド"
+    [3]="マネージャー：インフラ・DevOps"
+    [4]="ワーカー：UI/UXデザイン"
+    [5]="ワーカー：React/Vue開発"
+    [6]="ワーカー：CSS/スタイリング"
+    [7]="ワーカー：アクセシビリティ"
+    [8]="ワーカー：API設計"
+    [9]="ワーカー：データベース"
+    [10]="ワーカー：認証・セキュリティ"
+    [11]="ワーカー：ビジネスロジック"
+    [12]="ワーカー：CI/CD"
+    [13]="ワーカー：コンテナ・K8s"
+    [14]="ワーカー：モニタリング"
+    [15]="ワーカー：テスト・QA"
+)
 
-# Create a summary window
-tmux new-window -t "$SESSION_NAME" -c "$PROJECT_ROOT" -n "summary"
-tmux send-keys -t "$SESSION_NAME:summary" "clear" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo '=== Claude Agents Summary ==='" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo 'Session: $SESSION_NAME'" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo 'Agent count: $AGENT_COUNT'" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo 'Started at: \$(date)'" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo ''" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo 'Commands:'" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo '  tmux attach -t $SESSION_NAME  # Attach to session'" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo '  tmux kill-session -t $SESSION_NAME  # Kill session'" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo '  tmux list-windows -t $SESSION_NAME  # List windows'" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo ''" C-m
-tmux send-keys -t "$SESSION_NAME:summary" "echo 'Use Ctrl+b then number to switch between agents'" C-m
+# 各ペインの初期設定
+echo "Initializing agents..."
+for i in {0..15}; do
+    # ペインのタイトル設定
+    tmux send-keys -t $SESSION_NAME:0.$i "printf '\\033]2;Agent $i: ${AGENT_ROLES[$i]}\\033\\\\'" C-m
+    
+    # エージェント起動メッセージ
+    tmux send-keys -t $SESSION_NAME:0.$i "echo -e '${BLUE}Agent $i: ${AGENT_ROLES[$i]}${NC}'" C-m
+    tmux send-keys -t $SESSION_NAME:0.$i "echo '======================================'" C-m
+    
+    # Claude Code起動（少し遅延を入れて順次起動）
+    tmux send-keys -t $SESSION_NAME:0.$i "sleep $((i * 2)); claude --agent-name 'Agent-$i' --role '${AGENT_ROLES[$i]}'" C-m
+done
 
-# Focus on summary window
-tmux select-window -t "$SESSION_NAME:summary"
+# レイアウトを4x4グリッドに最終調整
+tmux select-layout -t $SESSION_NAME:0 tiled
 
-echo "✅ Tmux session '$SESSION_NAME' created with $AGENT_COUNT agents"
-echo "📱 To attach: tmux attach -t $SESSION_NAME"
-echo "🛑 To kill: tmux kill-session -t $SESSION_NAME"
+# エージェントコマンドのエイリアス設定
+echo -e "${GREEN}Setting up agent commands...${NC}"
+cat > /tmp/claude-agent-commands.sh << 'EOF'
+# Claude Agent Commands
+export CLAUDE_SESSION="claude-agents"
 
-# Optionally attach to the session
-if [[ "${TMUX_AUTO_ATTACH:-}" == "true" ]]; then
-    tmux attach -t "$SESSION_NAME"
-fi 
+# 全エージェントにコマンド送信
+ta() {
+    for i in {0..15}; do
+        tmux send-keys -t $CLAUDE_SESSION:0.$i "$1" C-m
+    done
+}
+
+# ボスエージェント（0番）にコマンド送信
+tb() {
+    tmux send-keys -t $CLAUDE_SESSION:0.0 "$1" C-m
+}
+
+# マネージャーエージェント（1-3番）にコマンド送信
+tm() {
+    for i in {1..3}; do
+        tmux send-keys -t $CLAUDE_SESSION:0.$i "$1" C-m
+    done
+}
+
+# ワーカーエージェント（4-15番）にコマンド送信
+tw() {
+    for i in {4..15}; do
+        tmux send-keys -t $CLAUDE_SESSION:0.$i "$1" C-m
+    done
+}
+
+# 特定のエージェントにコマンド送信
+tg() {
+    if [ -z "$2" ]; then
+        echo "Usage: tg <agent_number> <command>"
+        return 1
+    fi
+    tmux send-keys -t $CLAUDE_SESSION:0.$1 "$2" C-m
+}
+
+# エージェントのステータス確認
+ts() {
+    echo "Claude Agent Status:"
+    echo "==================="
+    tmux list-panes -t $CLAUDE_SESSION:0 -F "Agent #{pane_index}: #{pane_current_command}"
+}
+
+# エージェントビューの切り替え
+tv() {
+    if [ -z "$1" ]; then
+        echo "Usage: tv <agent_number>"
+        return 1
+    fi
+    tmux select-pane -t $CLAUDE_SESSION:0.$1
+}
+
+echo "Claude agent commands loaded!"
+echo "Commands: ta, tb, tm, tw, tg, ts, tv"
+EOF
+
+echo ""
+echo -e "${GREEN}✅ 16 Claude agents started successfully!${NC}"
+echo ""
+echo "Next steps:"
+echo "1. Attach to session: tmux attach -t $SESSION_NAME"
+echo "2. Load agent commands: source /tmp/claude-agent-commands.sh"
+echo "3. Use commands: ta, tb, tm, tw, tg, ts, tv"
+echo ""
+echo "Quick start example:"
+echo "  ta \"プロジェクトの要件を分析してください\""
+echo ""
+
+# オプション：自動的にセッションにアタッチ
+read -p "Attach to session now? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    tmux attach -t $SESSION_NAME
+fi

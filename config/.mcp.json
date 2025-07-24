@@ -1,60 +1,116 @@
 {
-  "mcpServers": {
-    "claude-assistant": {
-      "command": "node",
-      "args": ["./src/mcp-server.js"],
-      "env": {
-        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
-      }
+  "version": "1.0",
+  "agents": {
+    "default": {
+      "model": "claude-opus-4-20250514",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "tools": ["code_editor", "terminal", "web_search"]
     },
-    "file-manager": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"],
-      "env": {}
+    "boss": {
+      "model": "claude-opus-4-20250514",
+      "temperature": 0.5,
+      "role": "プロジェクトマネージャー",
+      "tools": ["code_review", "task_manager", "communication"],
+      "custom_instructions": "全体の設計と他エージェントへの指示を重視。詳細な実装は避け、アーキテクチャと方針の決定に集中。"
     },
-    "git-integration": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-git", "./"],
-      "env": {}
+    "manager": {
+      "model": "claude-opus-4-20250514",
+      "temperature": 0.6,
+      "role": "チームリーダー",
+      "tools": ["code_review", "task_manager", "code_editor"],
+      "custom_instructions": "担当領域のタスク分解と品質管理を重視。ワーカーへの具体的な指示を作成。"
     },
-    "task-manager": {
-      "command": "python",
-      "args": ["./src/task_mcp_server.py"],
-      "env": {
-        "PROJECT_ROOT": "./"
-      }
-    }
-  },
-  "globalSettings": {
-    "logLevel": "info",
-    "timeout": 30000,
-    "retries": 3
-  },
-  "agentConfigs": {
-    "coordinator": {
-      "maxTokens": 4000,
-      "temperature": 0.1,
-      "tools": ["file-manager", "git-integration", "task-manager"]
+    "worker": {
+      "model": "claude-sonnet-4",
+      "temperature": 0.8,
+      "role": "実装担当",
+      "tools": ["code_editor", "terminal", "debugger"],
+      "custom_instructions": "与えられたタスクの実装に集中。コードの品質とテストを重視。"
     },
-    "analyzer": {
-      "maxTokens": 8000,
-      "temperature": 0.2,
-      "tools": ["file-manager"]
-    },
-    "processor": {
-      "maxTokens": 6000,
-      "temperature": 0.3,
-      "tools": ["file-manager", "task-manager"]
-    },
-    "validator": {
-      "maxTokens": 4000,
-      "temperature": 0.1,
-      "tools": ["file-manager", "git-integration"]
-    },
-    "reporter": {
-      "maxTokens": 10000,
+    "reviewer": {
+      "model": "claude-opus-4-20250514",
       "temperature": 0.4,
-      "tools": ["file-manager", "task-manager"]
+      "role": "コードレビュアー",
+      "tools": ["code_review", "security_scanner", "performance_analyzer"],
+      "custom_instructions": "コードの品質、セキュリティ、パフォーマンスを厳密にチェック。建設的なフィードバックを提供。"
     }
+  },
+  "teams": {
+    "frontend": {
+      "agents": [1, 4, 5, 6, 7],
+      "focus": "UI/UX、React/Vue、CSS、アクセシビリティ"
+    },
+    "backend": {
+      "agents": [2, 8, 9, 10, 11],
+      "focus": "API設計、データベース、認証、ビジネスロジック"
+    },
+    "devops": {
+      "agents": [3, 12, 13, 14, 15],
+      "focus": "CI/CD、コンテナ、モニタリング、インフラ"
+    }
+  },
+  "github": {
+    "auto_pr": true,
+    "pr_template": ".github/pull_request_template.md",
+    "branch_prefix": "claude/",
+    "commit_prefix": "feat: ",
+    "commit_style": "conventional",
+    "pr_review_required": true,
+    "auto_merge": false
+  },
+  "security": {
+    "private_repo_only": true,
+    "mask_secrets": true,
+    "allowed_files": [
+      "*.py",
+      "*.js",
+      "*.ts",
+      "*.jsx",
+      "*.tsx",
+      "*.md",
+      "*.yml",
+      "*.yaml",
+      "*.json"
+    ],
+    "forbidden_patterns": ["password", "secret", "token", "key"],
+    "scan_dependencies": true
+  },
+  "communication": {
+    "language": "ja",
+    "style": "professional",
+    "documentation_level": "detailed",
+    "comment_code": true,
+    "explain_decisions": true
+  },
+  "workflow": {
+    "task_tracking": true,
+    "time_tracking": false,
+    "progress_reports": true,
+    "standup_format": "markdown",
+    "review_cycles": 2
+  },
+  "integration": {
+    "claude_code": {
+      "enabled": true,
+      "auto_sync": true,
+      "context_window": "large"
+    },
+    "github_actions": {
+      "enabled": true,
+      "trigger_on": ["@claude", "@claude-multi", "workflow_dispatch"]
+    },
+    "ide": {
+      "vscode": true,
+      "cursor": true,
+      "intellij": false
+    }
+  },
+  "performance": {
+    "parallel_execution": true,
+    "cache_responses": true,
+    "batch_operations": true,
+    "max_concurrent_agents": 16,
+    "timeout_seconds": 300
   }
 }
