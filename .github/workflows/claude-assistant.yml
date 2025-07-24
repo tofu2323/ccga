@@ -1,0 +1,25 @@
+name: Claude Assistant Workflow
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *" # Run every 6 hours
+
+jobs:
+  claude-assistant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Run Claude Assistant
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running Claude Assistant..."
+          # Add your Claude assistant logic here

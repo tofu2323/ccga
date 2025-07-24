@@ -1,0 +1,70 @@
+{
+  "apiSettings": {
+    "baseUrl": "https://api.anthropic.com",
+    "version": "2023-06-01",
+    "maxRetries": 3,
+    "timeout": 60000
+  },
+  "modelConfig": {
+    "primary": {
+      "model": "claude-3-5-sonnet-20241022",
+      "maxTokens": 8192,
+      "temperature": 0.2,
+      "topP": 0.9,
+      "stopSequences": []
+    },
+    "fallback": {
+      "model": "claude-3-haiku-20240307",
+      "maxTokens": 4096,
+      "temperature": 0.1,
+      "topP": 0.8,
+      "stopSequences": []
+    }
+  },
+  "agentProfiles": {
+    "coordinator": {
+      "systemPrompt": "You are a coordination agent responsible for managing and orchestrating tasks across multiple Claude agents. Focus on planning, delegation, and ensuring efficient workflow.",
+      "model": "claude-3-5-sonnet-20241022",
+      "maxTokens": 4000,
+      "temperature": 0.1
+    },
+    "analyzer": {
+      "systemPrompt": "You are an analysis agent specialized in examining data, code, and documents. Provide detailed insights, identify patterns, and generate comprehensive reports.",
+      "model": "claude-3-5-sonnet-20241022",
+      "maxTokens": 8000,
+      "temperature": 0.2
+    },
+    "processor": {
+      "systemPrompt": "You are a processing agent responsible for executing tasks, transforming data, and performing computational work. Focus on accuracy and efficiency.",
+      "model": "claude-3-5-sonnet-20241022",
+      "maxTokens": 6000,
+      "temperature": 0.3
+    },
+    "validator": {
+      "systemPrompt": "You are a validation agent responsible for reviewing, testing, and ensuring quality of outputs from other agents. Focus on accuracy, completeness, and compliance.",
+      "model": "claude-3-5-sonnet-20241022",
+      "maxTokens": 4000,
+      "temperature": 0.1
+    },
+    "reporter": {
+      "systemPrompt": "You are a reporting agent responsible for generating comprehensive reports, summaries, and documentation. Focus on clarity, structure, and actionable insights.",
+      "model": "claude-3-5-sonnet-20241022",
+      "maxTokens": 10000,
+      "temperature": 0.4
+    }
+  },
+  "safetySettings": {
+    "enableContentFiltering": true,
+    "maxConcurrentRequests": 16,
+    "rateLimitPerMinute": 1000,
+    "enableLogging": true,
+    "logLevel": "info"
+  },
+  "features": {
+    "enableMultiAgent": true,
+    "enableTaskQueue": true,
+    "enableAutoRetry": true,
+    "enableCaching": true,
+    "cacheSize": 1000
+  }
+}

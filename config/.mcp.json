@@ -1,0 +1,60 @@
+{
+  "mcpServers": {
+    "claude-assistant": {
+      "command": "node",
+      "args": ["./src/mcp-server.js"],
+      "env": {
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
+      }
+    },
+    "file-manager": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"],
+      "env": {}
+    },
+    "git-integration": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "./"],
+      "env": {}
+    },
+    "task-manager": {
+      "command": "python",
+      "args": ["./src/task_mcp_server.py"],
+      "env": {
+        "PROJECT_ROOT": "./"
+      }
+    }
+  },
+  "globalSettings": {
+    "logLevel": "info",
+    "timeout": 30000,
+    "retries": 3
+  },
+  "agentConfigs": {
+    "coordinator": {
+      "maxTokens": 4000,
+      "temperature": 0.1,
+      "tools": ["file-manager", "git-integration", "task-manager"]
+    },
+    "analyzer": {
+      "maxTokens": 8000,
+      "temperature": 0.2,
+      "tools": ["file-manager"]
+    },
+    "processor": {
+      "maxTokens": 6000,
+      "temperature": 0.3,
+      "tools": ["file-manager", "task-manager"]
+    },
+    "validator": {
+      "maxTokens": 4000,
+      "temperature": 0.1,
+      "tools": ["file-manager", "git-integration"]
+    },
+    "reporter": {
+      "maxTokens": 10000,
+      "temperature": 0.4,
+      "tools": ["file-manager", "task-manager"]
+    }
+  }
+}
